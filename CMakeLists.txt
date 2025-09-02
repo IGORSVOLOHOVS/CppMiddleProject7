@@ -11,7 +11,7 @@ if(CMAKE_CXX_COMPILER_ID MATCHES "GNU|Clang")
     add_compile_options(-Wfatal-errors -Wall -Werror)
 
     # Не больше одной ошибки за раз
-    add_compile_options(-fmax-errors=1)
+    # add_compile_options(-fmax-errors=1) I use clang... 
 endif()
 
 set(CMAKE_PREFIX_PATH /usr/local/asio)

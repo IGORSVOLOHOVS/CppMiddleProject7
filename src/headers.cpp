@@ -32,21 +32,21 @@ void iterHeaders(std::string_view req, Callback&& callback) {
     });
 }
 
-std::pair<std::string, std::string> findHostPort(std::string_view req) {
-    std::pair<std::string, std::string> host_port;
-    iterHeaders(req, [&host_port](std::string_view key, std::string_view value){
+HostPort findHostPort(std::string_view req) {
+    HostPort result;
+    iterHeaders(req, [&result](std::string_view key, std::string_view value){
         if (key == "Host") {
             auto pos = value.find(':');
             if (pos != std::string_view::npos) {
-                host_port.first = value.substr(0, pos);
-                host_port.second = value.substr(pos + 1);
+                result.host = value.substr(0, pos);
+                result.port = value.substr(pos + 1);
             } else {
-                host_port.first = value;
-                host_port.second = "80"; 
+                result.host = value;
+                result.port = "80"; 
             }
         }
     });
-    return host_port;
+    return result;
 }
 
 std::optional<size_t> findContentLength(std::string_view rsp) {

@@ -31,6 +31,8 @@ jobs:
   linux:
     name: Linux / GCC 15 / Conan / Debug
     runs-on: ubuntu-latest
+    # A hung test would otherwise hold a runner for six hours.
+    timeout-minutes: 60
 
     steps:
       - uses: actions/checkout@v4

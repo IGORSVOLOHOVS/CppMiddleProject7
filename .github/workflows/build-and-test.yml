@@ -1,0 +1,105 @@
+# Configure, build and run the test suite the way the dev container does.
+#
+# The job ends in `ctest`. For an asynchronous HTTP proxy a build that merely
+# links proves nothing: the parts worth checking are the header parsing and the
+# request handling, and only running the tests checks those.
+#
+# The toolchain mirrors .devcontainer/Dockerfile (GCC 15, C++26, -Wall -Werror
+# from CMakeLists.txt). Boost and GTest come from conanfile.py rather than from
+# apt, because the linux-default preset points CMAKE_TOOLCHAIN_FILE at
+# build/generators/conan_toolchain.cmake and nothing else writes that file.
+# Boost is pulled header-only, which is what the recipe asks for and what
+# asio/beast actually need.
+#
+# scripts/check_before_push.py runs exactly these steps locally.
+
+name: Build and test
+
+on:
+  push:
+  pull_request:
+  workflow_dispatch:
+
+permissions:
+  contents: read
+
+concurrency:
+  group: build-and-test-${{ github.ref }}
+  cancel-in-progress: true
+
+jobs:
+  linux:
+    name: Linux / GCC 15 / Conan / Debug
+    runs-on: ubuntu-latest
+
+    steps:
+      - uses: actions/checkout@v4
+
+      # GCC 15 is what .devcontainer/Dockerfile installs. Ubuntu 24.04, which
+      # is what ubuntu-latest currently is, has no g++-15 in the archive, so
+      # the toolchain PPA supplies it. The apt attempt comes first so the PPA
+      # drops out by itself once the runner image ships GCC 15.
+      - name: Install GCC 15
+        run: |
+          set -eux
+          sudo apt-get update
+          if ! sudo apt-get install -y --no-install-recommends g++-15 gcc-15; then
+            sudo add-apt-repository -y ppa:ubuntu-toolchain-r/test
+            sudo apt-get update
+            sudo apt-get install -y --no-install-recommends g++-15 gcc-15
+          fi
+          sudo apt-get install -y --no-install-recommends ccache
+          g++-15 --version
+
+      - uses: actions/setup-python@v5
+        with:
+          python-version: '3.12'
+
+      - name: Install Conan
+        run: pip install "conan>=2,<3"
+
+      - name: Restore the Conan cache
+        uses: actions/cache@v4
+        with:
+          path: ~/.conan2
+          key: conan-linux-gcc15-${{ hashFiles('conanfile.py') }}
+          restore-keys: |
+            conan-linux-gcc15-
+
+      - name: Restore the compiler cache
+        uses: actions/cache@v4
+        with:
+          path: ~/.cache/ccache
+          key: ccache-linux-gcc15-${{ github.sha }}
+          restore-keys: |
+            ccache-linux-gcc15-
+
+      # Same settings as .devcontainer/default, except build_type: the
+      # linux-default preset configures Debug, so Conan has to generate the
+      # dependency files for Debug or find_package would come up empty.
+      - name: Install the dependencies
+        env:
+          CC: gcc-15
+          CXX: g++-15
+        run: |
+          set -eux
+          conan profile detect --force
+          conan install . \
+            -s build_type=Debug \
+            -s compiler=gcc \
+            -s compiler.version=15 \
+            -s compiler.cppstd=gnu26 \
+            -s compiler.libcxx=libstdc++11 \
+            --build=missing
+
+      - name: Configure
+        env:
+          CC: gcc-15
+          CXX: g++-15
+        run: cmake --preset linux-default -D CMAKE_CXX_COMPILER_LAUNCHER=ccache
+
+      - name: Build
+        run: cmake --build --preset linux-default
+
+      - name: Test
+        run: ctest --preset linux-default

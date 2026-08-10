@@ -1,6 +1,10 @@
 #include "headers.h"
 
 #include <algorithm>
+// std::from_chars и std::errc. В libstdc++ <charconv> приезжает попутно через
+// <string_view>, в MSVC STL - нет, и файл падал на C2039: 'from_chars': is not
+// a member of 'std'.
+#include <charconv>
 #include <ranges>
 #include <string_view>
 

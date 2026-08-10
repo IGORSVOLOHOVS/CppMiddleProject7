@@ -1,7 +1,17 @@
 cmake_minimum_required(VERSION 3.31.6)
 project(AsyncHttpProxy VERSION 1.0.0 LANGUAGES CXX)
 
-set(CMAKE_CXX_STANDARD 26)
+if(MSVC)
+    # У CMake 4.1 просто нет флага C++26 для MSVC: в Modules/Compiler/MSVC-CXX.cmake
+    # стандарты описаны только до CXX23 (CMAKE_CXX_STANDARD_LATEST = 23), и запрос
+    # 26 обрывает конфигурацию - "requires the language dialect CXX26 ... but the
+    # current compiler MSVC does not support this".
+    # При этом CXX23 для MSVC разворачивается ровно в /std:c++latest, то есть в тот
+    # самый режим, где cl.exe 19.44 понимает и std::println, и co_await.
+    set(CMAKE_CXX_STANDARD 23)
+else()
+    set(CMAKE_CXX_STANDARD 26)
+endif()
 set(CMAKE_CXX_STANDARD_REQUIRED ON)
 set(CMAKE_CXX_EXTENSIONS OFF)
 set(CMAKE_EXPORT_COMPILE_COMMANDS ON)
@@ -11,10 +21,26 @@ if(CMAKE_CXX_COMPILER_ID MATCHES "GNU|Clang")
     add_compile_options(-Wfatal-errors -Wall -Werror)
 
     # Не больше одной ошибки за раз
-    # add_compile_options(-fmax-errors=1) I use clang... 
+    # add_compile_options(-fmax-errors=1) I use clang...
+elseif(MSVC)
+    # Исходники - UTF-8 без BOM, а cl.exe по умолчанию читает их в кодовой
+    # странице системы и спотыкается на русских комментариях (C4819).
+    add_compile_options(/utf-8)
+
+    # boost.asio + boost.beast в одном объектнике дают больше 65536 секций,
+    # без /bigobj ассемблер обрывается на C1128.
+    add_compile_options(/bigobj)
+
+    # Без _WIN32_WINNT boost.asio печатает предупреждение и сам выбирает
+    # Windows 7. Фиксируем Windows 10, иначе ветка выбора реализации
+    # (IOCP, cancel_io_ex) зависит от машины, на которой шла сборка.
+    add_compile_definitions(_WIN32_WINNT=0x0A00)
 endif()
 
-set(CMAKE_PREFIX_PATH /usr/local/asio)
+# list(APPEND ...), а не set(): conan_toolchain.cmake кладёт в CMAKE_PREFIX_PATH
+# каталог со своими *-config.cmake, и присваивание затёрло бы его - следом
+# find_package(Boost) и find_package(GTest) не нашли бы ничего.
+list(APPEND CMAKE_PREFIX_PATH /usr/local/asio)
 
 # Ищем необходимые библиотеки
 find_package(Boost REQUIRED)

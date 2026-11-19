@@ -3,6 +3,20 @@
 Восстановлена по коду коммита `40d9bae` (2025-09-02). Описывает реализованное
 поведение, а не замысел задания курса.
 
+<!-- jira-sync:start -->
+Jira: KAN-140
+
+## Tasks
+
+This list is one ticket in Jira project KAN, [KAN-140](https://igorsvolohovs.atlassian.net/browse/KAN-140). Each line is a checkbox there: tick it in Jira and the sync ticks it here; add a checkbox there and it is appended here. Done items are the features described in section 3; open items are what the project declares but the code does not do yet.
+
+- [x] Запуск и приём соединений (section 3.1) <!-- spec-12d9152358 -->
+- [x] Разбор заголовков (section 3.2) <!-- spec-23ced5df9b -->
+- [x] Сессия проксирования (section 3.3) <!-- spec-0f5e84f0bc -->
+- [ ] Учёт байтов тела, прочитанных вместе с заголовками ответа (declared, not implemented) <!-- spec-c7106864c2 -->
+
+<!-- jira-sync:end -->
+
 ## 1. Назначение и границы
 
 Асинхронный однопоточный HTTP-прокси на Boost.Asio с корутинами (`src/main.cpp`), учебное
